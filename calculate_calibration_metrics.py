@@ -5,7 +5,6 @@ from calibration_metrics import calculate_brier_score, calculate_ece, calculate_
 
 import csv
 import numpy as np
-# from conformal_prediction import apply_calibration, apply_conformal_prediction
 import matplotlib.pyplot as plt
 
 CLASSIFICATION_THRESHHOLD = 0.5
