@@ -58,9 +58,6 @@ def plot_rel_dia(confidence, accuracy, bins, iteration, dataset, interactive_bin
 
     # Show plot
     plt.grid()
-    # print(f"\n ITeration = {iteration}")
-    # for index, conf in enumerate(confidence):
-    #     print(f"[Bin {index}] confidence={conf}")
     plt.savefig(
         f'../experiment_results_oversampled_2/Rel_diagram_iteration {iteration}_{dataset}_{bins} bins interactive binning {interactive_binning}_scikit_impl_{scikit_impl}_calibration_{calibration}.png')
     plt.close(fig)
