@@ -2,7 +2,7 @@
 
 ## Getting started
 
-This folder contains 4 .py files
+This folder contains 4 .py files:
 
 The calibration_metrics files contains the implementation of the calibration metrics (ECE, MCE, Brier score) used to measure the (mis) calibration of each JIT DP model
 
