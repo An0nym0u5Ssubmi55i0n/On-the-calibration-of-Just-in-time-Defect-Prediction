@@ -63,14 +63,6 @@ def temperature_scaling(predictions_calibration, labels_calibration, predictions
 def invert_sigmoid_scores(predictions):
     # https://stackoverflow.com/questions/66116840/inverse-sigmoid-function-in-python-for-neural-networks
     inverted_np = np.log(predictions) - np.log(1 - predictions)
-
-    # alternative impls
-    # inverted_arr = []
-    # for pred in predictions:
-    #     inverted_arr.append(np.log(pred/(1-pred)))
-
-    # predictions = torch.from_numpy(deepcopy(predictions))
-    # inverted = torch.log(predictions/(1-predictions))
     return inverted_np
 
 
