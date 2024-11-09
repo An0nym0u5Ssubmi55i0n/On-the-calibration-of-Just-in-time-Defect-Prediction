@@ -12,7 +12,6 @@ import numpy as np
 import trustscore_evaluation
 import pickle
 
-
 def evaluation_model(data, params, inv_temp=None, p_model=None, signals=None):
     pad_msg, pad_code, labels, dict_msg, dict_code = data
     batches = mini_batches_test(X_msg=pad_msg, X_code=pad_code, Y=labels)
