@@ -10,7 +10,7 @@ The calculate_calibration_metrics file is a script for computing all the calibra
 
 The calibration_methods file contains the implementation of the calibration methods (Platt and Temperature scaling) used to adjust the calibration of the JIT DP models.
 
-The calibration process is another script for running the whole training, calibration and evaluation process.
+The statistical_analysis contains the methods used to analyse the statistical significance of our experimental results.
 
 ## JIT DP Models:
 For these experiments we use three JIT DP techniques, whose implementation is publicly available
