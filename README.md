@@ -2,11 +2,9 @@
 
 ## Getting started
 
-This folder contains 4 .py files:
+This folder contains 3 .py files:
 
-The calibration_metrics files contains the implementation of the calibration metrics (ECE, MCE, Brier score) used to measure the (mis) calibration of each JIT DP model
-
-The calculate_calibration_metrics file is a script for computing all the calibration metrics, given a set of predictions
+The calculate_calibration_metrics file contains the implementation of the calibration metrics (ECE, MCE, Brier score) used to measure the (mis) calibration of each JIT DP model
 
 The calibration_methods file contains the implementation of the calibration methods (Platt and Temperature scaling) used to adjust the calibration of the JIT DP models.
 
