@@ -2,25 +2,14 @@ import numpy as np
 import ast
 import csv
 import calculate_calibration_metrics
-from calculate_calibration_metrics import calculate_brier_score, calculate_ece, calculate_mce
-from conformal_prediction import apply_calibration, apply_conformal_prediction
 import torch
 import math
 from copy import deepcopy
-
 from torch import nn
-
-from pycalib.models.calibrators import BinningCalibration
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.linear_model import LogisticRegression as LR
-from sklearn.isotonic import IsotonicRegression as IR
-from sklearn.metrics import roc_auc_score, log_loss
-
-from netcal.regression import IsotonicRegression as nIR
 from netcal.scaling import LogisticCalibration as nPS
-from netcal.binning import HistogramBinning as nHB
 from netcal.scaling import TemperatureScaling
-from netcal.metrics import ECE
 
 
 
