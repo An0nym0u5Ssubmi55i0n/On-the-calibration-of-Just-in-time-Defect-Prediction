@@ -1,151 +1,109 @@
 from sklearn.calibration import calibration_curve as reliability_diagram
 from sklearn.metrics import brier_score_loss, roc_auc_score, log_loss
 from netcal.metrics import ECE
-from calibration_metrics import calculate_brier_score, calculate_ece, calculate_mce, evaluate_reliability_diagram, _full_accuracy_rel_dia
 
 import csv
 import numpy as np
 import matplotlib.pyplot as plt
 
-CLASSIFICATION_THRESHHOLD = 0.5
-DATASET = 'op'
-CALIBRATION = 'False'
+
+# we experiment with bin size "n_bins" = 15 and "n_bins" = 50
+
+def compute_ece_mce(p, l, b, interactive_binning= False):
+    """
+    Compute the Expected Calibration Error (ECE) score and MCE (max calibration error)
+    Args:
+    p (np.array): Array of prediction probabilities (size N).
+    l (np.array): Array of true labels (size N).
+    b (int): Number of bins for calibration.
+
+    Returns:
+    2 float-s: ECE score and MCE score
+    """
+    ece = 0.0
+    N = len(p)
+    mce=0
+    # Discretize probabilities into bins
+    if interactive_binning:
+        quantiles = np.linspace(0, 1, b + 1)
+        bin_edges = np.percentile(p, quantiles * 100)
+    else:
+        bin_edges = np.linspace(0, 1, b + 1)
+
+    for i in range(b):
+        # Find the indices of predictions falling within the current bin
+        in_bin = np.where((p >= bin_edges[i]) & (p < bin_edges[i + 1]))[0]
+
+        if len(in_bin) == 0:
+            continue
+
+        # Calculate the accuracy of the predictions in this bin
+        correct = []
+        for i in in_bin:
+            if l[i] == 1:
+                correct.append(i)
+
+        accuracy = len(correct)/len(in_bin)
+
+        # Calculate the average predicted probability in this bin
+        avg_prob = np.mean(p[in_bin])
+
+        # Compute the absolute difference between accuracy and average probability
+        if mce < abs(accuracy - avg_prob):
+            mce= abs(accuracy - avg_prob)
+        ece += len(in_bin) / N * abs(accuracy - avg_prob)
+
+    return ece, mce
 
 
-def write_calibration_scores(scores_list, filename):
-    with open(filename, 'w', newline='') as f:
-        writer = csv.writer(f)
-        for index, scores in enumerate(scores_list):
-            if index == 0: writer.writerow(np.asarray(scores.keys()).tolist())
-            writer.writerow(np.asarray(scores.values()).tolist())
-
-def read_input(filename):
-    predictions = []
-    labels = []
-    predicted_category = []
-    confusion_matrix_category = []
-    with open(filename, newline='') as f:
-        reader = csv.reader(f)
-        for index, row in enumerate(reader):
-            if index == 0: continue
-            predictions.append(float(row[1]))
-            labels.append(float(row[2]))
-            predicted_category.append(row[4])
-            confusion_matrix_category.append(row[5])
-    return predictions, labels, predicted_category, confusion_matrix_category
+def calculate_brier_score(labels, preds):
+    return brier_score_loss(labels, preds, pos_label=1.0)
 
 
-if __name__ == '__main__':
-    calibrations = ['True', 'False']
-    for calibration in calibrations:
-        CALIBRATION = calibration
-        all_scores = []
-        for iteration in range(100):
-            filename = f'../Add_your_path/eval_calibration_{calibration}_iteration_{iteration}_evaluation_{DATASET}.csv'
-            input_data = read_input(filename)
-            predictions, labels, predicted_categories, confusion_matrix_categories = input_data
-            labels = np.asarray(labels)
-            predictions = np.asarray(predictions)
+def plot_rel_dia(confidence, accuracy, bins, iteration, dataset, interactive_binning=False, scikit_impl=False,
+                 calibration=None):
+    # Plot the bar chart
+    fig = plt.figure(figsize=(12, 6))
+    bar_width = 0.01
+    label = 'Accuracy'
+    if scikit_impl: label = 'Fraction of defect-inducing commits'
+    plt.bar(confidence - bar_width / 2, accuracy, bar_width, color='b', alpha=0.6, label=label)
 
-            predictions_true_class = []
-            true_predictions = []
-            for index, cm_cat in enumerate(confusion_matrix_categories):
-                # adjust prediction to be prediction of the true class
-                label = labels[index]
-                prediction_true_class = predictions[index]
-                if label == 0.0: prediction_true_class = 1-prediction_true_class
-                predictions_true_class.append(prediction_true_class)
-                # create weighting array for correct predictions
-                if "True" in cm_cat:
-                    true_predictions.append(1)
-                else:
-                    true_predictions.append(0)
+    # Plot the reference line
+    plt.plot([0, 1], [0, 1], 'k--', label='Perfectly Calibrated')
 
-            # true_predictions = [1 if "True" in cm_cat else 0 for cm_cat in confusion_matrix_categories]
+    # Add labels and title
+    plt.xlabel('Confidence')
+    plt.ylabel(label)
+    plt.title(
+        f'Reliability Diagram for iteration {iteration} of {dataset} dataset with {len(confidence)} actual bins (interactive binning {interactive_binning}) calibration_{calibration}')
+    plt.legend()
 
-            # RELIABILITY DIAGRAMS
-            rel_diagram_bin_15 = evaluate_reliability_diagram(labels, predictions, true_predictions, 15, iteration, DATASET)
-            rel_diagram_bin_15_interactive = evaluate_reliability_diagram(labels, predictions, true_predictions, 15, iteration, DATASET, interactive_binning=True)
-            rel_diagram_bin_50 = evaluate_reliability_diagram(labels, predictions, true_predictions, 50, iteration, DATASET)
-            
-            # RELIABILITY DIAGRAMS using accuracy impl
-            rel_diagram_bin_15_accuracy = _full_accuracy_rel_dia(labels, predictions_true_class, true_predictions, 15, iteration, DATASET)
-            rel_diagram_bin_15_interactive_accuracy = _full_accuracy_rel_dia(labels, predictions_true_class, true_predictions, 15, iteration, DATASET, interactive_binning=True)
-            rel_diagram_bin_50_accuracy = _full_accuracy_rel_dia(labels, predictions_true_class, true_predictions, 50, iteration, DATASET)
-
-            # ECE Scores of the last iteration
-            if iteration == 99:
-                ece_bin_15 = calculate_ece(rel_diagram_bin_15[0], rel_diagram_bin_15[1], True)
-                ece_bin_15_interactive = calculate_ece(rel_diagram_bin_15_interactive[0], rel_diagram_bin_15_interactive[1], True)
-                ece_bin_50 = calculate_ece(rel_diagram_bin_50[0], rel_diagram_bin_50[1], True)
-            else:
-                ece_bin_15 = calculate_ece(rel_diagram_bin_15[0], rel_diagram_bin_15[1])
-                ece_bin_15_interactive = calculate_ece(rel_diagram_bin_15_interactive[0], rel_diagram_bin_15_interactive[1])
-                ece_bin_50 = calculate_ece(rel_diagram_bin_50[0], rel_diagram_bin_50[1])
-            
-            # ECE Scores using accuracy impl,
-            if iteration == 99:
-                ece_bin_15_accuracy = calculate_ece(rel_diagram_bin_15_accuracy[0], rel_diagram_bin_15_accuracy[1], True)
-                ece_bin_15_interactive_accuracy = calculate_ece(rel_diagram_bin_15_interactive_accuracy[0], rel_diagram_bin_15_interactive_accuracy[1], True)
-                ece_bin_50_accuracy = calculate_ece(rel_diagram_bin_50_accuracy[0], rel_diagram_bin_50_accuracy[1], True)
-            else:
-                ece_bin_15_accuracy = calculate_ece(rel_diagram_bin_15_accuracy[0], rel_diagram_bin_15_accuracy[1])
-                ece_bin_15_interactive_accuracy = calculate_ece(rel_diagram_bin_15_interactive_accuracy[0], rel_diagram_bin_15_interactive_accuracy[1])
-                ece_bin_50_accuracy = calculate_ece(rel_diagram_bin_50_accuracy[0], rel_diagram_bin_50_accuracy[1])
-
-            # MCE Scores
-            mce_bin_15 = calculate_mce(rel_diagram_bin_15[0], rel_diagram_bin_15[1])
-            mce_bin_15_interactive = calculate_mce(rel_diagram_bin_15_interactive[0], rel_diagram_bin_15_interactive[1])
-            mce_bin_50 = calculate_mce(rel_diagram_bin_50[0], rel_diagram_bin_50[1])
-            
-            # MCE Scores using accuracy impl
-            mce_bin_15_accuracy = calculate_mce(rel_diagram_bin_15_accuracy[0], rel_diagram_bin_15_accuracy[1])
-            mce_bin_15_interactive_accuracy = calculate_mce(rel_diagram_bin_15_interactive_accuracy[0], rel_diagram_bin_15_interactive_accuracy[1])
-            mce_bin_50_accuracy = calculate_mce(rel_diagram_bin_50_accuracy[0], rel_diagram_bin_50_accuracy[1])
-
-            # netcal ECE
-            ece = ECE(15)
-            ece_score_bin_15_netcal = ece.measure(predictions, labels)
-            ece_50 = ECE(50)
-            ece_score_bin_50_netcal = ece_50.measure(predictions, labels)
-
-            # AUC score
-            auc_score = roc_auc_score(labels, predictions)
-
-            # Log Loss
-            log_loss_calc = log_loss(labels, predictions)
-
-            # Brier Score
-            brier_score = calculate_brier_score(labels, predictions)
-
-            # print(f"Len rel diagram = {len(rel_diagram_bin_15[1])} \n and its accuracy  = {rel_diagram_bin_15[1]}")
-            # print(f"\nLen rel diagram = {len(rel_diagram_bin_50[1])} \n and its accuracy = {rel_diagram_bin_50[1]}")
-            scores = {'rel_diagram_bin_15': rel_diagram_bin_15, 
-                    'rel_diagram_bin_15_interactive': rel_diagram_bin_15_interactive,
-                    "rel_diagram_bin_50": rel_diagram_bin_50, 
-                    "ece_bin_15": ece_bin_15, 
-                    "ece_bin_15_interactive": ece_bin_15_interactive,
-                    "ece_score_bin_15_netcal": ece_score_bin_15_netcal,
-                    "ece_bin_50": ece_bin_50,
-                    "ece_score_bin_50_netcal": ece_score_bin_50_netcal,
-                    "mce_bin_15": mce_bin_15, 
-                    "mce_bin_15_interactive": mce_bin_15_interactive,
-                    "mce_bin_50": mce_bin_50,
-                    "auc_score": auc_score,
-                    "log_loss": log_loss_calc,
-                    "brier_score": brier_score,
-                    'rel_diagram_bin_15_accuracy': rel_diagram_bin_15_accuracy,
-                    'rel_diagram_bin_15_interactive_accuracy': rel_diagram_bin_15_interactive_accuracy,
-                    "rel_diagram_bin_50_accuracy": rel_diagram_bin_50_accuracy,
-                    "ece_bin_15_accuracy": ece_bin_15_accuracy,
-                    "ece_bin_15_interactive_accuracy": ece_bin_15_interactive_accuracy,
-                    "ece_bin_50_accuracy": ece_bin_50_accuracy,
-                    "mce_bin_15_accuracy": mce_bin_15_accuracy,
-                    "mce_bin_15_interactive_accuracy": mce_bin_15_interactive_accuracy,
-                    "mce_bin_50_accuracy": mce_bin_50_accuracy,
-                    }
-            all_scores.append(scores)
-            print(f"Iteration {iteration} done.")
-        write_calibration_scores(all_scores, f'../Add_your_path/calibration_scores_aggregated_calibration_{calibration}_including_accuracy_{DATASET}.csv')
+    # Show plot
+    plt.grid()
+    plt.savefig(
+        f'../{ADD_DIRECTORY}/Rel_diagram_{dataset}_{bins} bins interactive binning {interactive_binning}_calibration_{calibration}.png')
+    plt.close(fig)
 
 
+def evaluate_reliability_diagram(labels, preds, true_preds, n_bins, iteration, dataset, interactive_binning=False):
+    # cf. https://github.com/scikit-learn/scikit-learn/blob/5491dc695/sklearn/calibration.py#L915 (extended for correct accuracy)
+    if interactive_binning:
+        quantiles = np.linspace(0, 1, n_bins + 1)
+        bins = np.percentile(preds, quantiles * 100)
+    else:
+        bins = np.linspace(0.0, 1.0, n_bins + 1)
+
+    binids = np.searchsorted(bins[1:-1], preds)
+
+    bin_total = np.bincount(binids, minlength=len(bins))
+    bin_sums = np.bincount(binids, weights=preds, minlength=len(bins))
+    bin_true = np.bincount(binids, weights=labels, minlength=len(bins))
+
+    nonzero = bin_total != 0
+    confidence = bin_sums[nonzero] / bin_total[nonzero]
+    accuracy = bin_true[nonzero] / bin_total[nonzero]
+
+    plot_rel_dia(confidence, accuracy, n_bins, iteration, dataset, interactive_binning, True)
+
+    return confidence, accuracy, bin_total, bin_total[nonzero]
