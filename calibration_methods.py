@@ -34,21 +34,6 @@ def platt_scaling(predictions_calibration, labels_calibration, predictions_test,
     p_calibrated_cal = nps.transform(predictions_calibration)
     return np.asarray(p_calibrated_test), np.asarray(p_calibrated_cal)
 
-# should only be used with logits/ inverted confidences
-def custom_platt_scaling(predictions_calibration, labels_calibration, predictions_test, lables_test):
-    """ Custom Impl of Logistic Regression, using the LogisticRegression from Scikit-Learn
-    """
-    lr = LR()
-    cal_pred_reshaped = predictions_calibration.reshape(-1, 1)
-    lr.fit(cal_pred_reshaped, labels_calibration)     # LR needs X to be 2-dimensional
-
-    p_calibrated_all_test = lr.predict_proba(predictions_test.reshape(-1, 1))
-    p_calibrated_test = p_calibrated_all_test[:,1]
-
-    p_calibrated_all_cal = lr.predict_proba(predictions_calibration.reshape(-1, 1))
-    p_calibrated_cal = p_calibrated_all_cal[:,1]
-    return np.asarray(p_calibrated_test), np.asarray(p_calibrated_cal)
-
 # uses logits
 def temperature_scaling(predictions_calibration, labels_calibration, predictions_test, lables_test):
     """ Netcal impl of TemperatureScaling
